@@ -1,24 +1,17 @@
-// pega o id do formuçário 
-//e aguarda ouvir o evento de submit para submeter o formulário
+let currentPokemonId = 1; // Inicia com o primeiro Pokémon
+
+// Pega o id do formulário e aguarda 
+//ouvir o evento de submit para submeter o formulário
 document.getElementById('form-pokemon').addEventListener('submit', function(event) {
-    // impede o carregamento da página ao submeter o formulário
     event.preventDefault(); 
-    // pega o id do input do formulário pelo valor
-    // que foi informado no campo
     const pokemonInput = document.getElementById('nome-pokemon').value.toLowerCase(); 
-    // método que pega o que foi fornecido no input
     fetchPokemon(pokemonInput); 
 });
 
-// função assincrona que se comunica com a APi 
-// passando o parâmentro pokemon na url da api
+// Função para buscar o Pokémon pela API
 async function fetchPokemon(pokemon) {
-    // constante que recebe a url da api com os parâmetro desejado
     const apiUrl = `https://pokeapi.co/api/v2/pokemon/${pokemon}/`;
 
-    // tratamento de exceção que espera a resposta da api
-    // sendo ok retorna a informação solicitada a api
-    // senão retorna a menssagem de erro.
     try {
         const response = await fetch(apiUrl);
         
@@ -26,35 +19,76 @@ async function fetchPokemon(pokemon) {
             throw new Error('Pokémon não localizado');
         }
 
-        // guarda a resposta da api numa constante data
-        // que mostra as  informações do pokmon solicitado
         const data = await response.json();
-        mostrarPokemon(data); 
+        currentPokemonId = data.id; 
+        await fetchPokemonSpecies(data.species.url); 
         
-    } catch (error) { // faz o tratamento do erro caso não localizado
-
+    } catch (error) {
         console.error('Erro:', error);
-        mostrarError('Pokémon não localizado'); 
+        mostrarError('Pokémon não localizado');
     }
 }
 
-// função que mostra as informaçôes do pokmon 
-// e mostra essas informações diretamente no htm
-
-function mostrarPokemon(pokemon) {
-    // contante que armazena as informaççoes do pokmon pelo id
-    const pokemonInfo = document.getElementById('info-pokemon');
-    // carraga as informações no documento html
-    // com o nome do pokmon e a sua imagem
-    pokemonInfo.innerHTML = `
-        <h2>${pokemon.name.toUpperCase()}</h2> 
-        <img src="${pokemon.sprites.front_default}" alt="${pokemon.name}">
-    `;
+// Busca pela espécie do Pokémon e a descrição
+async function fetchPokemonSpecies(url) {
+    try {
+        const response = await fetch(url);
+        const speciesData = await response.json();
+        mostrarPokemon(speciesData);
+    } catch (error) {
+        console.error('Erro ao buscar espécie do Pokémon:', error);
+        mostrarError('Erro ao carregar informações do Pokémon');
+    }
 }
 
-// Função que carrega a informação de erro no html
-// caso o pokmon não seja localizado
+// Mostra o Pokémon, a imagem e a descrição com fallback para inglês
+function mostrarPokemon(species) {
+    const pokemonInfo = document.getElementById('info-pokemon');
+
+    // Buscando a descrição em português, ou fallback para inglês se não disponível
+    const descriptionEntry = species.flavor_text_entries.find(entry => entry.language.name === 'pt') || 
+                             species.flavor_text_entries.find(entry => entry.language.name === 'en'); // Fallback para inglês
+                             
+    const description = descriptionEntry ? descriptionEntry.flavor_text.replace(/\n/g, ' ') : 'Descrição não disponível.';
+
+    pokemonInfo.innerHTML = `
+        <h2>${species.name.toUpperCase()}</h2> 
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${currentPokemonId}.png" alt="${species.name}">
+        <p>${description}</p>
+    `;
+    
+    document.getElementById('prev').disabled = currentPokemonId <= 1;
+    document.getElementById('next').disabled = currentPokemonId >= 898;
+}
+
+// Exibe uma mensagem de erro
 function mostrarError(message) {
     const pokemonInfo = document.getElementById('info-pokemon');
     pokemonInfo.innerHTML = `<p>${message}</p>`;
 }
+
+// Botão para avançar ao próximo Pokémon
+document.getElementById('next').addEventListener('click', function() {
+    currentPokemonId++;
+    fetchPokemonById(currentPokemonId);
+});
+
+// Botão para voltar ao Pokémon anterior
+document.getElementById('prev').addEventListener('click', function() {
+    if (currentPokemonId > 1) {
+        currentPokemonId--;
+        fetchPokemonById(currentPokemonId);
+    }
+});
+
+// Função para buscar Pokémon pelo ID
+async function fetchPokemonById(id) {
+    await fetchPokemon(id);
+}
+
+
+
+
+
+
+
